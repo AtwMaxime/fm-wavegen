@@ -28,6 +28,12 @@ A two-stage image generation pipeline using Flow Matching and wavelet decomposit
 # Install dependencies
 pip install -r requirements.txt
 
+# Download and place datasets as follows:
+data/
+├── raw/
+│   ├── coco2017/              # COCO 2017 dataset
+│   └── cifar-10-batches-py/   # CIFAR-10 in original pickle format
+
 # Preprocess data
 python scripts/preprocess_ll.py
 python scripts/preprocess_hf.py
