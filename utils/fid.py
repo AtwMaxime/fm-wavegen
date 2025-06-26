@@ -49,9 +49,14 @@ def remove_corrupt_images(folder):
 
 
 if __name__ == "__main__":
-    remove_corrupt_images("data/processed/resized")
-    remove_corrupt_images("data/processed/reconstruct")
+    #remove_corrupt_images("data/processed/resized")
+    #remove_corrupt_images("data/processed/reconstruct")
+    #calculate_fid_between_folders(
+    #    path_real="data/processed/resized",
+    #    path_fake="data/processed/reconstruct"
+    #)
+
     calculate_fid_between_folders(
-        path_real="data/processed/resized",
-        path_fake="data/processed/reconstruct"
+        path_real="data/processed_cifar10_ll/resolution_16",
+        path_fake="outputs/ll_samples"
     )

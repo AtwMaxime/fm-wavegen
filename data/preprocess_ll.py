@@ -18,7 +18,7 @@ def unpickle(file):
     of a pickled Python object. It uses `encoding='bytes'` for compatibility
     during the unpickling process.
 
-    :param file: Path to the binary pickle file.
+    :param file: Path to the binary pickle faile.
     :type file: str
     :return: Deserialized Python object from the pickle file.
     :rtype: Any
@@ -77,6 +77,16 @@ def process_batches():
             LL = extract_ll(img)
             np.save(os.path.join(SAVE_DIR, f"{counter:05}.npy"), LL)
             counter += 1
+            from torchvision.transforms.functional import to_pil_image
+
+            # Normalize for visualization
+            LL_vis = LL.astype(np.float32)
+            LL_vis -= LL_vis.min()
+            LL_vis /= (LL_vis.max() - LL_vis.min() + 1e-8)
+
+            # Save PNG from first 3 channel
+            img_rgb = to_pil_image(np.transpose(LL_vis, (1, 2, 0)))
+            img_rgb.save(os.path.join(SAVE_DIR, f"{counter:05}.png"))
 
 if __name__ == "__main__":
     process_batches()

@@ -10,6 +10,8 @@ import os
 import glob
 import tqdm
 import copy
+import torchdiffeq
+from torchdyn.core import NeuralODE
 from utils.fid import calculate_fid_between_folders
 
 
@@ -37,10 +39,13 @@ def generate_images(model, dataloader, dataset, output_dir, target_samples=5000)
         t_span = torch.linspace(0, 1, 50).to(device)
 
         with torch.no_grad():
-            traj = torchdiffeq.odeint(
-                lambda t, x: model(t, x, resolution=torch.full((x.shape[0],), ll.shape[-1], device=x.device)),
-                input, t_span, rtol=1e-4, atol=1e-4
-            )
+            def ode_func(t, x):
+                B = x.shape[0]
+                t_tensor = torch.full((B,), t, device=x.device)
+                res_tensor = torch.full((B,), ll.shape[-1], device=x.device)
+                return model(x, t_tensor, resolution=res_tensor)
+
+            traj = torchdiffeq.odeint(ode_func, input, t_span, rtol=1e-4, atol=1e-4)
             xt = traj[-1][:, 3:]
             ll_inv = inverse_normalize(ll, dataset.ll_mean.cuda(), dataset.ll_std.cuda())
             hf_inv = inverse_normalize(xt, dataset.hf_mean.cuda(), dataset.hf_std.cuda())
@@ -56,19 +61,19 @@ def generate_images(model, dataloader, dataset, output_dir, target_samples=5000)
 
 if __name__ == "__main__":
 
-    for resolution in [16,32,64,128,256]:
+    for resolution in [128,256]:
         checkpoint_dir = f"models/checkpoints/hf_models_res{resolution}"
         output_dir = f"outputs/generated_res{resolution}"
 
         batch_size = 32
         if resolution == 64:
-            batch_size = 16
-        elif resolution == 128:
-            batch_size = 8
-        elif resolution == 256:
             batch_size = 4
+        elif resolution == 128:
+            batch_size = 1
+        elif resolution == 256:
+            batch_size = 1
 
-        dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True, drop_last=True, num_workers=4)
+
 
         dataset = HFDataset("data/processed", resolution=resolution)
         dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True, drop_last=True, num_workers=4)
@@ -88,8 +93,8 @@ if __name__ == "__main__":
 
         generate_images(model, dataloader, dataset, output_dir, target_samples=5000)
 
-        calculate_fid_between_folders(
-            path_real=f"data/processed/resolution_{resolution}",
-            path_fake=output_dir,
-            output_txt="outputs/fid_results.txt"
-        )
+        # calculate_fid_between_folders(
+        #     path_real=f"data/processed/resolution_{resolution}",
+        #     path_fake=output_dir,
+        #     output_txt="outputs/fid_results.txt"
+        # )

@@ -226,7 +226,6 @@ def train_resolution_conditioned_model(
     flow_matcher,
     dataloader,
     total_steps,
-    resolution,
     save_every=5000,
     save_dir="checkpoints",
     start_step=0,
@@ -287,8 +286,7 @@ def train_resolution_conditioned_model(
         # === Flow Matching ===
         with torch.cuda.amp.autocast():  # Automatically casts to float16 when safe
             t, xt, ut = flow_matcher.sample_location_and_conditional_flow(model_input, target)
-            resolution_tensor = torch.full((ll.size(0),), resolution, device=device)
-            vt = model(t=t, x=xt, resolution=resolution_tensor)
+            vt = model(t=t, x=xt, ll_image=ll)
             loss = ((vt - ut) ** 2).mean()
 
         scaler.scale(loss).backward()
@@ -327,13 +325,13 @@ def train_resolution_conditioned_model(
 
             torch.save(ckpt, os.path.join(save_dir, f"ckpt_step_{step}.pt"))
             np.save(os.path.join(save_dir, "loss_history.npy"), np.array(loss_history))
-            #generate_samples_conditional_batch(
-                #model=ema_model,
-                #datalooper=dataloader,
-                #dataset=dataset,
-                #savedir=save_dir,
-                #step=step,
-                #net_name="ema")
+            generate_samples_conditional_batch(
+                model=ema_model,
+                datalooper=dataloader,
+                dataset=dataset,
+                savedir=save_dir,
+                step=step,
+                net_name="ema")
 
 from models.hf_unet import HFUNet
 from data.hf_dataset import HFDataset
@@ -345,12 +343,10 @@ print("Creating model...")
 
 # Model
 model = HFUNet(
-    in_channels=12,
-    out_channels=12,
-    cond_dim=256,
+    in_channels=9,       # 9 = 3 HF bands × 3 channels
+    out_channels=12,     # 9 HF + 3 LL passthrough
     block_out_channels=(128, 256, 512),
     layers_per_block=2,
-    attention_head_dim=64,
 ).to("cuda")
 
 print("Selecting Optimizer and Flow Matching Method...")
@@ -406,7 +402,6 @@ for res in resolutions:
         flow_matcher=flow_matcher,
         dataloader=infinite_loader,
         total_steps=start_step + steps_per_res,
-        resolution=res,
         save_every=5000,
         save_dir=f"models/checkpoints/hf_models_res{res}",
         start_step=start_step,
